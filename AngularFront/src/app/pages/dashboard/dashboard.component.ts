@@ -1,10 +1,8 @@
 import { Component, OnInit } from '@angular/core';
-import { CdkDragDrop, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
-import { Board } from 'src/app/models/board.model';
-// import { Column } from 'src/app/models/column.model';
-
-import { TodoServiceService } from "src/app/todo-service.service";
+import { FormControl, FormGroup, FormArray } from '@angular/forms';
 import { isThisISOWeek } from 'date-fns';
+import { HttpClient } from '@angular/common/http';
+import { concat } from 'rxjs';
 
 @Component({
   selector: 'app-dashboard',
@@ -12,101 +10,53 @@ import { isThisISOWeek } from 'date-fns';
   styleUrls: ['./dashboard.component.scss']
 })
 export class DashboardComponent implements OnInit {
-  flag1: boolean;
-  flag2: boolean;
-  form: any = {
-    address: '',
-    street: '',
-    city: '',
-    country: ''
-  };
+
+  addressFormgroup: FormGroup;
 
   constructor(
-    private todoService: TodoServiceService
+    private _http: HttpClient
   ) { }
 
-  board: Board;
-  updating: any = {
-    i: '',
-    j: ''
-  };
-
-  // tslint:disable-next-line:typedef
-  OpenEditor() {
-    this.flag2 = !this.flag2;
- }
-
- // tslint:disable-next-line:typedef
- AddTodo() {
-  this.flag1 = !this.flag1;
-}
-
-
-  // tslint:disable-next-line:typedef
   ngOnInit() {
-    this.flag1 = true,
-    this.flag2 = false,
-    this.board = this.todoService.fetch();
+
+    this.addressFormgroup = new FormGroup({
+      addressList: new FormArray([
+      ])
+    })
+    
+  }
+  newAddress() {
+    return new FormGroup({
+      address: new FormControl(),
+      city: new FormControl(),
+      street: new FormControl(),
+      country: new FormControl()
+    });
   }
 
-  // tslint:disable-next-line:typedef
-  drop(event: CdkDragDrop<string[]>) {
-    if (event.previousContainer === event.container) {
-      moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
-    } else {
-      transferArrayItem(event.previousContainer.data,
-        event.container.data,
-        event.previousIndex,
-        event.currentIndex);
-    }
-    this.todoService.refresh(this.board);
+  addAddress() {
+    const addressList = this.addressFormgroup.get('addressList') as FormArray;
+    addressList.push(this.newAddress());
   }
 
-  // tslint:disable-next-line:typedef
-  createTask() {
-    if (this.updating.i !== '') {
-      this.board.columns[this.updating.i].tasks[this.updating.j] = {
-        ...this.form
-      };
-      this.updating = {
-        i: '',
-        j: ''
-      };
-      this.todoService.refresh(this.board);
-    } else {
-      this.form = {
-        ...this.form,
-        // tslint:disable-next-line:new-parens
-        date: new Date
-      };
-      this.todoService.update(this.form);
-    }
+  removeAddress(i) {
+    const addressList = this.addressFormgroup.get('addressList') as FormArray;
+    addressList.removeAt(i);
 
-    this.form = {
-      title: '',
-      description: '',
-      priority: 'high',
-      date: new Date()
-    };
-    this.board = this.todoService.fetch();
   }
-
-  // tslint:disable-next-line:typedef
-  delete(i, j) {
-    delete this.board.columns[i].tasks[j];
-    this.board.columns[i].tasks = this.board.columns[i].tasks.filter(a => !!a);
-    this.todoService.refresh(this.board);
-  }
-
-  // tslint:disable-next-line:typedef
-  edit(i, j) {
-    this.updating = {
-      i,
-      j
-    };
-    this.form = this.board.columns[i].tasks[j];
-    document.getElementById('modal-add').click();
+  submitAddress() {
+    const httpList = [];
+    this.addressFormgroup.get('addressList').value.forEach(element => {
+      httpList.push(this._http.post('http://localhost:4400/api/v1/addAddress', element));
+    });
+    concat(...httpList).subscribe(v => {
+      this.addressFormgroup.reset();
+      
+      this.addressFormgroup = new FormGroup({
+        addressList: new FormArray([
+        ])
+      })
+    })
   }
 
 }
-
